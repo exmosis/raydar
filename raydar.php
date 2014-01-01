@@ -1,10 +1,17 @@
 <?php
 
+require_once('cls_DropboxFile.php');
+
 define('DROPBOX_UPLOADER', './bash/Dropbox-Uploader/dropbox_uploader.sh');
 define('DROPBOX_UPLOADER_CMD_LIST', 'list');
+define('DROPBOX_UPLOADER_CMD_GET_URL', 'share');
 
 define('CONFIG_FILE_DIRS', '/home/pi/.raydar/dirs');
 define('CONFIG_FILE_KNOWN_FILES', '/home/pi/.raydar/.known_files.db');
+
+// Constants for file types
+define('DIR_ENTRY_TYPE_FILE', 'F');
+define('DIR_ENTRY_TYPE_DIR', 'D');
 
 run();
 exit;
@@ -37,9 +44,72 @@ function getDropboxUpdates($dirs) {
 	$new_known_files = array();
 
 	foreach ($dirs as $dir => $recurse) {
-		$cmd = DROPBOX_UPLOADER . ' ' . DROPBOX_UPLOADER_CMD_LIST . ' ' . $dir;
-		echo `$cmd`;
+		// $cmd = DROPBOX_UPLOADER . ' ' . DROPBOX_UPLOADER_CMD_LIST . ' ' . $dir;
+		$dir_entries[$dir] = buildDropboxContents($dir);
 	}
+
+	print_r($dir_entries);
+
+}
+
+
+function buildDropboxContents($dir) {
+
+	$cmd = DROPBOX_UPLOADER . ' ' . DROPBOX_UPLOADER_CMD_LIST . ' "' . $dir . '"';
+	$dir_entries = `$cmd`;
+	$dir_entries = explode("\n", $dir_entries);
+
+	$dir_files = array();
+	$dir_dirs = array();
+
+	foreach ($dir_entries as $dir_entry) {
+		if (preg_match('/
+				^\s*
+				\[
+				  ([^\]]+)	# $1 = entry type
+				\]
+				\s+
+				  (.*)		# $2 = entry name
+				$
+				/x', $dir_entry, $matches)) {
+
+			$dir_entry_type = $matches[1];
+			$dir_entry_name = trim($matches[2]);
+
+			if ($dir_entry_type && $dir_entry_name) {
+				if ($dir_entry_type == DIR_ENTRY_TYPE_FILE) {
+					
+					$dropbox_file = new DropboxFile();
+					$dropbox_file->setFileName($dir_entry_name);
+					$dropbox_file->setFullPath($dir);
+	
+					$link_cmd = DROPBOX_UPLOADER . ' ' . 
+						    DROPBOX_UPLOADER_CMD_GET_URL . 
+						    ' "' . $dir . '/' . $dir_entry_name . '"';
+					$link_cmd_result = `$link_cmd`;
+					if (preg_match('/\s(
+							https?:\/\/.*	# $1 = URL
+							)$/x', $link_cmd_result, $matches)) {
+						$link = trim($matches[1]);
+					}
+
+					if ($link) {
+						$dropbox_file->setPublicUrl($link);
+					}
+
+					$dir_files[] = $dropbox_file;
+
+				} else if ($dir_entry_type == DIR_ENTRY_TYPE_DIR) {
+					$dir_dirs[$dir_entry_name] = buildDropboxContents($dir . '/' . $dir_entry_name);
+				}
+			}
+		}
+	}
+
+	return array(
+			DIR_ENTRY_TYPE_FILE => $dir_files,
+			DIR_ENTRY_TYPE_DIR  => $dir_dirs
+	);
 
 }
 
