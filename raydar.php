@@ -1,6 +1,8 @@
 <?php
 
 require_once('cls_DropboxFile.php');
+require_once('cls_DropboxDir.php');
+require_once('includes/PHPMailer/PHPMailerAutoload.php');
 
 define('DROPBOX_UPLOADER', './bash/Dropbox-Uploader/dropbox_uploader.sh');
 define('DROPBOX_UPLOADER_CMD_LIST', 'list');
@@ -29,12 +31,43 @@ function run() {
 	list($updates, $known_files) = getDropboxUpdates($raydar_dirs);
 	if (! $updates) {
 		echo '  No updates detected.' . "\n";
+	} else {
+		sendUpdatesEmail($updates);
 	}
 
 	saveKnownFiles($known_files);
 
 }
 
+function sendUpdatesEmail($updates) {
+
+	$mail = new PHPMailer;
+
+	$mail->isSMTP();                                      // Set mailer to use SMTP
+	$mail->Host = 'smtp.mythic-beasts.com';  // Specify main and backup server
+	$mail->SMTPAuth = true;                               // Enable SMTP authentication
+	$mail->Username = 'graham';                            // SMTP username
+	$mail->Password = 'panda43greml1n';                           // SMTP password
+	$mail->SMTPSecure = 'tls';   
+
+	$mail->From = 'graham@exmosis.net';
+	$mail->FromName = 'Update test';
+	$mail->addAddress('exmosis@gmail.com');
+	$mail->isHTML(true);
+
+	$mail->Subject = 'Dropbox updates [test]';
+
+	$body = '';
+	foreach ($updates as $dir_info) {
+		print_r($dir_info);
+		$body .= $dir_info->toHTML();
+	}
+
+	$mail->Body = $body;
+	$mail->AltBody = $body;
+
+	$mail->send();
+}
 
 function getDropboxUpdates($dirs) {
 
@@ -44,11 +77,10 @@ function getDropboxUpdates($dirs) {
 	$new_known_files = array();
 
 	foreach ($dirs as $dir => $recurse) {
-		// $cmd = DROPBOX_UPLOADER . ' ' . DROPBOX_UPLOADER_CMD_LIST . ' ' . $dir;
-		$dir_entries[$dir] = buildDropboxContents($dir);
+		$dir_entries[] = buildDropboxContents($dir);
 	}
 
-	print_r($dir_entries);
+	return array($dir_entries, null);
 
 }
 
@@ -59,8 +91,9 @@ function buildDropboxContents($dir) {
 	$dir_entries = `$cmd`;
 	$dir_entries = explode("\n", $dir_entries);
 
-	$dir_files = array();
-	$dir_dirs = array();
+	$this_dir = new DropboxDir();
+	$this_dir->setFullPath($dir);
+	$this_dir->setDirName($dir);
 
 	foreach ($dir_entries as $dir_entry) {
 		if (preg_match('/
@@ -97,19 +130,16 @@ function buildDropboxContents($dir) {
 						$dropbox_file->setPublicUrl($link);
 					}
 
-					$dir_files[] = $dropbox_file;
+					$this_dir->addSubFile($dropbox_file);
 
 				} else if ($dir_entry_type == DIR_ENTRY_TYPE_DIR) {
-					$dir_dirs[$dir_entry_name] = buildDropboxContents($dir . '/' . $dir_entry_name);
+					$this_dir->addSubDir(buildDropboxContents($dir . '/' . $dir_entry_name));
 				}
 			}
 		}
 	}
 
-	return array(
-			DIR_ENTRY_TYPE_FILE => $dir_files,
-			DIR_ENTRY_TYPE_DIR  => $dir_dirs
-	);
+	return $this_dir;
 
 }
 
