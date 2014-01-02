@@ -39,5 +39,34 @@ class DropboxFile {
 		return $this->public_url;
 	}
 
+
+	function toHTML() {
+
+		$html = '';
+
+		$html .= '<li><a href="' . $this->getPublicUrl() . '" target="_blank">' .
+			  $this->getFileName() . 
+			  '</a></li>';
+
+		return $html;
+
+	}
+
+	public static function startListToHTML() {
+
+		$html = '';
+		$html .= '<ul>';
+		return $html;
+
+	}
+
+	public static function endListToHTML() {
+
+		$html = '';
+		$html .= '</ul>';
+		return $html;
+
+	}
+
 }
 
