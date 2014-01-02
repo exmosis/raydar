@@ -81,5 +81,18 @@ class DropboxDir {
 		return $html;
 
 	}
+
+	public static function startListToHTML() {
+		$html = '';
+		$html .= '<ul>';
+		return $html;
+	}
+
+	public static function endListToHTML() {
+		$html = '';
+		$html .= '</ul>';
+		return $html;
+	}
+
 }
 
