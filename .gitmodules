@@ -1,3 +1,6 @@
 [submodule "bash/Dropbox-Uploader"]
 	path = bash/Dropbox-Uploader
 	url = https://github.com/andreafabrizi/Dropbox-Uploader.git
+[submodule "includes/PHPMailer"]
+	path = includes/PHPMailer
+	url = https://github.com/PHPMailer/PHPMailer.git
