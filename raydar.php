@@ -1,5 +1,6 @@
 <?php
 
+require_once('config.php');
 require_once('cls_DropboxFile.php');
 require_once('cls_DropboxDir.php');
 require_once('includes/PHPMailer/PHPMailerAutoload.php');
@@ -10,17 +11,21 @@ define('DROPBOX_UPLOADER_CMD_GET_URL', 'share');
 
 define('CONFIG_FILE_DIRS', '/home/pi/.raydar/dirs');
 define('CONFIG_FILE_KNOWN_FILES', '/home/pi/.raydar/.known_files.db');
+define('CONFIG_FILE_SMTP', 'smtp');
 
 // Constants for file types
 define('DIR_ENTRY_TYPE_FILE', 'F');
 define('DIR_ENTRY_TYPE_DIR', 'D');
+
+// Get config entries for SMTP
+loadConfig(CONFIG_FILE_SMTP, true);
 
 run();
 exit;
 
 function run() {
 
-	echo 'Ray Dar starting up...' . "\n";
+	echo 'Raydar starting up...' . "\n";
 
 	$raydar_dirs = getDirConfig();
 	if (! $raydar_dirs) {
@@ -44,24 +49,25 @@ function sendUpdatesEmail($updates) {
 	$mail = new PHPMailer;
 
 	$mail->isSMTP();                                      // Set mailer to use SMTP
-	$mail->Host = 'smtp.mythic-beasts.com';  // Specify main and backup server
-	$mail->SMTPAuth = true;                               // Enable SMTP authentication
-	$mail->Username = 'graham';                            // SMTP username
-	$mail->Password = 'panda43greml1n';                           // SMTP password
-	$mail->SMTPSecure = 'tls';   
+	$mail->Host = SMTP_HOST;  // Specify main and backup server
+	$mail->SMTPAuth = SMTP_AUTH;                               // Enable SMTP authentication
+	$mail->Username = SMTP_USERNAME;                            // SMTP username
+	$mail->Password = SMTP_PASSWORD;                           // SMTP password
+	$mail->SMTPSecure = SMTP_SECURE;   
 
-	$mail->From = 'graham@exmosis.net';
-	$mail->FromName = 'Update test';
-	$mail->addAddress('exmosis@gmail.com');
+	$mail->From = SMTP_FROM;
+	$mail->FromName = SMTP_FROMNAME;
+	$mail->addAddress(SMTP_TO);
 	$mail->isHTML(true);
 
-	$mail->Subject = 'Dropbox updates [test]';
+	$mail->Subject = SMTP_SUBJECT;
 
 	$body = '';
+	$body .= DropboxDir::startListToHTML();
 	foreach ($updates as $dir_info) {
-		print_r($dir_info);
 		$body .= $dir_info->toHTML();
 	}
+	$body .= DropboxDir::endListToHTML();
 
 	$mail->Body = $body;
 	$mail->AltBody = $body;
@@ -133,7 +139,7 @@ function buildDropboxContents($dir) {
 					$this_dir->addSubFile($dropbox_file);
 
 				} else if ($dir_entry_type == DIR_ENTRY_TYPE_DIR) {
-					$this_dir->addSubDir(buildDropboxContents($dir . '/' . $dir_entry_name));
+					// $this_dir->addSubDir(buildDropboxContents($dir . '/' . $dir_entry_name));
 				}
 			}
 		}
