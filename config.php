@@ -1,10 +1,11 @@
 <?php
 
-define('CONFIG_DIR', '/home/pi/.raydar/');
+if (! defined('CONFIG_DIR')) {
+	define('CONFIG_DIR', '/home/pi/.raydar');
+}
 
 function loadConfig($file, $mandatory = false) {
-
-	$file = CONFIG_DIR . $file;
+	$file = CONFIG_DIR . '/' . $file;
 
 	if (! file_exists($file)) {
 		echo "Config file not found: " . $file . "\n";
