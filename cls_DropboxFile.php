@@ -79,7 +79,7 @@ class DropboxFile {
 	}
 
 	public static function fromJson($json) {
-		$str = json_decode($jsoni, true);
+		$str = json_decode($json, true);
 		if (! $str) {
 			return null;
 		}
