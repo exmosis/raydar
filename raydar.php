@@ -17,9 +17,6 @@ define('CONFIG_FILE_SMTP', 'smtp');
 define('DIR_ENTRY_TYPE_FILE', 'F');
 define('DIR_ENTRY_TYPE_DIR', 'D');
 
-// Get config entries for SMTP
-loadConfig(CONFIG_FILE_SMTP, true);
-
 run();
 exit;
 
@@ -27,13 +24,18 @@ function run() {
 
 	echo 'Raydar starting up...' . "\n";
 
+	// Get config entries for SMTP
+	loadConfig(CONFIG_FILE_SMTP, true);
+
 	$raydar_dirs = getDirConfig();
 	if (! $raydar_dirs) {
 		echo '  No directories configured. Exiting.' . "\n";
 		exit;
 	}
+	
+	$old_known_files = getKnownFiles();
 
-	list($updates, $known_files) = getDropboxUpdates($raydar_dirs);
+	list($known_files, $updates) = getDropboxUpdates($raydar_dirs, $old_known_files);
 	if (! $updates) {
 		echo '  No updates detected.' . "\n";
 	} else {
@@ -75,11 +77,10 @@ function sendUpdatesEmail($updates) {
 	$mail->send();
 }
 
-function getDropboxUpdates($dirs) {
+function getDropboxUpdates($dirs, $old_known_files = array()) {
 
 	$updates = array();
 	
-	$old_known_files = getKnownFiles();
 	$new_known_files = array();
 
 	foreach ($dirs as $dir => $recurse) {
@@ -92,6 +93,8 @@ function getDropboxUpdates($dirs) {
 
 
 function buildDropboxContents($dir) {
+
+	echo "Processing $dir\n";
 
 	$cmd = DROPBOX_UPLOADER . ' ' . DROPBOX_UPLOADER_CMD_LIST . ' "' . $dir . '"';
 	$dir_entries = `$cmd`;
@@ -189,11 +192,17 @@ function getDirConfig() {
 	return $raydar_dirs;
 }	
 
-function saveKnownFiles($updates) {
+function saveKnownFiles($known_files) {
+
+	echo "Writing known files to disk.\n";
 
 	$fh = fopen(CONFIG_FILE_KNOWN_FILES, 'w');
 	if ($fh) {
-		fwrite($fh, json_encode($updates));
+		$json_base = array();
+		foreach ($known_files as $kf) {
+			$json_base[] = $kf->toJson();
+		}
+		fwrite($fh, json_encode($json_base));
 		fclose($fh);
 	}
 
@@ -201,16 +210,22 @@ function saveKnownFiles($updates) {
 
 function getKnownFiles() {
 
-	$known_files = array();
+	$known_objs = array();
 
 	if (file_exists(CONFIG_FILE_KNOWN_FILES)) {
 		$contents = file_get_contents(CONFIG_FILE_KNOWN_FILES);
 		if ($contents) {
 			$known_files = json_decode($contents);
+
+			if ($known_files) {
+				foreach ($known_files as $decode_dir) {
+					$known_objs[] = DropboxDir::fromJson($decode_dir);
+				}
+			}		
 		}
 	}
 
-	return $known_files;
+	return $known_objs;
 
 }
 
