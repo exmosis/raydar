@@ -2,8 +2,10 @@
 ini_set('display_errors', 'On');
 ini_set('error_reporting', 'E_ALL');
 
+define('MAX_LOG_LEVEL', 0); // 0 = message, 1 = debug
+
 // TODO: Work out user's home directory automatically
-define('CONFIG_DIR', '/Users/graham/.raydar');
+define('CONFIG_DIR', '/home/pi/.raydar');
 define('CONFIG_FILE_DIRS', CONFIG_DIR . '/dirs');
 define('CONFIG_FILE_KNOWN_FILES', CONFIG_DIR . '/.known_files.db');
 define('CONFIG_FILE_SMTP', 'smtp');
@@ -26,23 +28,37 @@ exit;
 
 function run() {
 
-	echo 'Raydar starting up...' . "\n";
+	noticeString('Raydar starting up...', 0);
 
 	// Get config entries for SMTP
 	loadConfig(CONFIG_FILE_SMTP, true);
 
 	$raydar_dirs = getDirConfig();
 
+	noticeObject('raydar_dirs', $raydar_dirs, 1);
+	
 	if (! $raydar_dirs) {
-		echo '  No directories configured. Exiting.' . "\n";
+		noticeString('  No directories configured. Exiting.', 0);
 		exit;
 	}
 
 	$old_known_files = getKnownFiles();
+	noticeObject('old_known_files', $old_known_files, 1);
 
 	list($known_files, $updates) = getDropboxUpdates($raydar_dirs, $old_known_files);
-	if (! $updates) {
-		echo '  No updates detected.' . "\n";
+
+	noticeObject('known_files', $known_files, 1);
+	noticeObject('updates', $updates, 1);
+
+	$empty_updates = true;
+	foreach ($updates as $upd) {
+		if (! $upd->isEmpty()) {
+			$empty_updates = false;
+		}
+	}
+
+	if ($empty_updates) {
+		noticeString('  No updates detected.', 0);
 	} else {
 		sendUpdatesEmail($updates);
 	}
@@ -52,6 +68,8 @@ function run() {
 }
 
 function sendUpdatesEmail($updates) {
+
+	echo "Sending updates email...\n";
 
 	$mail = new PHPMailer;
 
@@ -82,22 +100,100 @@ function sendUpdatesEmail($updates) {
 	$mail->send();
 }
 
+/**
+ * Top-level (non-recursive) function to cycle through directories we want to 
+ * check.
+ */
 function getDropboxUpdates($dirs, $old_known_files = array()) {
 
+	$dir_entries = array();
 	$updates = array();
 	
-	$new_known_files = array();
-
 	foreach ($dirs as $dir => $recurse) {
-		$dir_entries[] = buildDropboxContents($dir);
+		$old_cache = array();
+		foreach ($old_known_files as $cache_dir_info) {
+			if ($cache_dir_info->getFullPath() == $dir) {
+				$old_cache = $cache_dir_info;
+				break;
+			}
+		}
+		$dir_entries[] = buildDropboxContents($dir, $old_cache);
+
+		$updates[] = calculateUpdatedFiles($old_cache, $dir_entries[count($dir_entries) - 1]);
 	}
 
-	return array($dir_entries, null);
+	noticeObject('dir_entries', $dir_entries, 1);
+	noticeObject('updates', $updates, 1);
+
+	return array($dir_entries, $updates);
 
 }
 
+/**
+ * Generic function to compare $old_files with $new_files and return only those in latter.
+ * Both input params are a DropboxDir object.
+ */
+function calculateUpdatedFiles($old_files, $new_files) {
 
-function buildDropboxContents($dir) {
+	noticeObject('old_files', $old_files, 1);
+	noticeObject('new_files', $new_files, 1);
+
+	$updates = new DropboxDir();
+	$updates->setFullPath($new_files->getFullPath());
+	$updates->setDirName($new_files->getDirName());
+	$updates->setPublicUrl($new_files->getPublicUrl());
+
+	// compare subdirs
+	foreach ($new_files->getSubDirs() as $subdir) {
+		$compare_dir = null;
+		// Find same dir in old version
+		foreach ($old_files->getSubDirs() as $old_subdir) {
+			if ($subdir->getFullPath() == $old_subdir->getFullPath()) {
+				$compare_dir = $old_subdir;
+				break;
+			}
+		}
+		if ($compare_dir != null) {
+			// Match found, add changes only
+			$updates->addSubDir(calculateUpdatedFiles($compare_dir, $subdir));
+		} else {
+			// No match, everything is new
+			$updates->addSubDir($subdir);
+		}
+	}
+
+	noticeObject('updates mid way', $updates, 1);
+
+	// compare files
+	foreach ($new_files->getSubFiles() as $subfile) {
+
+		noticeString('Checking subfile: ' . $subfile->getFileName(), 1);
+
+		$compare_file = null;
+		// Find same file in old version
+		foreach ($old_files->getSubFiles() as $old_subfile) {
+			if ($subfile->getFullPath() == $old_subfile->getFullPath() &&
+			    $subfile->getFileName() == $old_subfile->getFileName()) {
+				// match exists
+				$compare_file = $old_subfile; 
+				noticeObject('Found cache version', $compare_file, 1);
+			}
+		}
+		if ($compare_file == null) {
+			$updates->addSubFile($subfile);
+		}
+	}
+
+	noticeObject('updates', $updates, 1);
+
+	return $updates;
+
+}
+
+/**
+ * Recursive function to get contents of directory from Dropbox and turn into object tree.
+ */
+function buildDropboxContents($dir, $dir_cache = null) {
 
 	echo "Processing $dir\n";
 
@@ -129,19 +225,41 @@ function buildDropboxContents($dir) {
 					$dropbox_file = new DropboxFile();
 					$dropbox_file->setFileName($dir_entry_name);
 					$dropbox_file->setFullPath($dir);
-	
-					$link_cmd = DROPBOX_UPLOADER . ' ' . 
-						    DROPBOX_UPLOADER_CMD_GET_URL . 
-						    ' "' . $dir . '/' . $dir_entry_name . '"';
-					$link_cmd_result = `$link_cmd`;
-					if (preg_match('/\s(
-							https?:\/\/.*	# $1 = URL
-							)$/x', $link_cmd_result, $matches)) {
-						$link = trim($matches[1]);
-					}
 
-					if ($link) {
-						$dropbox_file->setPublicUrl($link);
+					echo "Checking file: " . $dir_entry_name . "\n";
+
+					$cache_link = null;
+					if ($dir_cache != null && count($dir_cache->getSubFiles()) > 0) {
+						foreach ($dir_cache->getSubFiles() as $cache_subfile) {
+							if ($cache_subfile->getFullPath() == $dir &&
+							    $cache_subfile->getFileName() == $dir_entry_name) {
+									echo "Found cache_link: " . $cache_subfile->getPublicUrl() . "\n";
+								$cache_link = $cache_subfile->getPublicUrl();
+							}
+						}
+					}
+					// Only fetch Public URL if we don't have it cached.
+					if ($cache_link != null) {
+						noticeString("Found cached link for " . $dir_entry_name, 0);
+						$dropbox_file->setPublicUrl($cache_link);
+					} else {
+
+						noticeString("Getting URL for " . $dir_entry_name, 0);
+						// TODO: Move this into object as "updatePublicUrl()"
+	
+						$link_cmd = DROPBOX_UPLOADER . ' ' . 
+							    DROPBOX_UPLOADER_CMD_GET_URL . 
+							    ' "' . $dir . '/' . $dir_entry_name . '"';
+						$link_cmd_result = `$link_cmd`;
+						if (preg_match('/\s(
+								https?:\/\/.*	# $1 = URL
+								)$/x', $link_cmd_result, $matches)) {
+							$link = trim($matches[1]);
+						}
+
+						if ($link) {
+							$dropbox_file->setPublicUrl($link);
+						}
 					}
 
 					$this_dir->addSubFile($dropbox_file);
@@ -152,6 +270,8 @@ function buildDropboxContents($dir) {
 			}
 		}
 	}
+
+	noticeObject('this_dir', $this_dir, 1);
 
 	return $this_dir;
 
@@ -226,13 +346,30 @@ function getKnownFiles() {
 				foreach ($known_files as $decode_dir) {
 					$known_objs[] = DropboxDir::fromJson($decode_dir);
 				}
-			}		
+			} else {
+				echo "Couldn't decode previous file cache.\n";
+			}
 		}
+	} else {
+		echo "Didn't detect previous file cache.\n";
 	}
 
 	return $known_objs;
 
 }
 
+function noticeObject($obj_name, $obj, $level = 1) {
+	if ($level > MAX_LOG_LEVEL) {
+		return;
+	}
+	echo "\n" . $obj_name . ':' . "\n";
+	print_r($obj);
+}
 
+function noticeString($msg, $level = 0) {
+	if ($level > MAX_LOG_LEVEL) {
+		return;
+	}
+	echo $msg . "\n";
+}
 
