@@ -10,55 +10,69 @@ class DropboxDir {
 	var $subfiles = array();
 	var $subdirs = array();
 
-	function setFullPath($path) {
+	public function __construct() {
+		$this->reset();
+	}
+
+	public function reset() {
+		$this->full_path = '';
+		$this->parent_dir = '';
+		$this->dir_name = '';
+		$this->public_url = '';
+
+		$this->subfiles = array();
+		$this->subdirs = array();
+	}
+
+	public function setFullPath($path) {
 		$this->full_path = $path;
 	}
 
-	function getFullPath() {
+	public function getFullPath() {
 		return $this->full_path;
 	}
 
-	function setParentDir($parent_dir) {
+	public function setParentDir($parent_dir) {
 		$this->parent_dir = $parent_dir;
 	}
 
-	function getParentDir() {
+	public function getParentDir() {
 		return $this->parent_dir;
 	}
 
-	function setDirName($dir_name) {
+	public function setDirName($dir_name) {
 		$this->dir_name = $dir_name;
 	}
 
-	function getDirName() {
+	public function getDirName() {
 		return $this->dir_name;
 	}
 
-	function setPublicUrl($public_url) {
+	public function setPublicUrl($public_url) {
 		$this->public_url = $public_url;
 	}
 
-	function getPublicUrl() {
+	public function getPublicUrl() {
 		return $this->public_url;
 	}
 
-	function addSubFile($file_obj) {
+	public function addSubFile($file_obj) {
 		$this->subfiles[] = $file_obj;
 	}
 
-	function getSubFiles() {
+	public function getSubFiles() {
 		return $this->subfiles;
 	}
 
-	function addSubDir($dir_obj) {
+	public function addSubDir($dir_obj) {
 		$this->subdirs[] = $dir_obj;
 	}
 
-	function getSubDirs() {
+	public function getSubDirs() {
 		return $this->subdirs;
 	}
 
-	function toHTML() {
+	public function toHTML() {
 
 		$html = '';
 		$html .= '<li>';
@@ -94,7 +108,7 @@ class DropboxDir {
 		return $html;
 	}
 
-	function toJson() {
+	public function toJson() {
 		$str_base = array(
 			'full_path'  => $this->getFullPath(),
 			'parent_dir' => $this->getParentDir(),
@@ -120,13 +134,13 @@ class DropboxDir {
 	}
 
 	public static function fromJson($json) {
-		$str = json_decode($json);
+		$str = json_decode($json, true);
 		if (! $str) {
 			return null;
 		}
 
 		$dir_obj = new DropboxDir();
-		if (@$str['full_path']) {
+		if ($str['full_path']) {
 			$dir_obj->setFullPath($str['full_path']);
 		}
 		if (@$str['parent_dir']) {

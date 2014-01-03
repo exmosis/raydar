@@ -7,40 +7,40 @@ class DropboxFile {
 	var $file_name = '';
 	var $public_url = '';
 
-	function setFullPath($path) {
+	public function setFullPath($path) {
 		$this->full_path = $path;
 	}
 
-	function getFullPath() {
+	public function getFullPath() {
 		return $this->full_path;
 	}
 
-	function setParentDir($parent_dir) {
+	public function setParentDir($parent_dir) {
 		$this->parent_dir = $parent_dir;
 	}
 
-	function getParentDir() {
+	public function getParentDir() {
 		return $this->parent_dir;
 	}
 
-	function setFileName($file_name) {
+	public function setFileName($file_name) {
 		$this->file_name = $file_name;
 	}
 
-	function getFileName() {
+	public function getFileName() {
 		return $this->file_name;
 	}
 
-	function setPublicUrl($public_url) {
+	public function setPublicUrl($public_url) {
 		$this->public_url = $public_url;
 	}
 
-	function getPublicUrl() {
+	public function getPublicUrl() {
 		return $this->public_url;
 	}
 
 
-	function toHTML() {
+	public function toHTML() {
 
 		$html = '';
 
@@ -68,7 +68,7 @@ class DropboxFile {
 
 	}
 
-	function toJson() {
+	public function toJson() {
 		$str_base = array(
 			'full_path'  => $this->getFullPath(),
 			'parent_dir' => $this->getParentDir(),
@@ -79,7 +79,7 @@ class DropboxFile {
 	}
 
 	public static function fromJson($json) {
-		$str = json_decode($json);
+		$str = json_decode($jsoni, true);
 		if (! $str) {
 			return null;
 		}
