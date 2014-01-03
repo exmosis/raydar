@@ -174,5 +174,9 @@ class DropboxDir {
 		return $dir_obj;
 	}
 
+	public function isEmpty() {
+		return (count($this->getSubFiles()) == 0 && count($this->getSubDirs()) == 0);
+	}
+
 }
 
