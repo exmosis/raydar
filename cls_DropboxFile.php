@@ -68,5 +68,38 @@ class DropboxFile {
 
 	}
 
+	function toJson() {
+		$str_base = array(
+			'full_path'  => $this->getFullPath(),
+			'parent_dir' => $this->getParentDir(),
+			'file_name'  => $this->getFileName(),
+			'public_url' => $this->getPublicUrl(),
+		);
+		return json_encode($str_base);
+	}
+
+	public static function fromJson($json) {
+		$str = json_decode($json);
+		if (! $str) {
+			return null;
+		}
+
+		$file_obj = new DropboxFile();
+		if (@$str['full_path']) {
+			$file_obj->setFullPath($str['full_path']);
+		}
+		if (@$str['parent_dir']) {
+			$file_obj->setParentDir($str['parent_dir']);
+		}
+		if (@$str['file_name']) {
+			$file_obj->setFileName($str['file_name']);
+		}
+		if (@$str['public_url']) {
+			$file_obj->setPublicUrl($str['public_url']);
+		}
+
+		return $file_obj;
+	}
+
 }
 

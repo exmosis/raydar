@@ -94,5 +94,71 @@ class DropboxDir {
 		return $html;
 	}
 
+	function toJson() {
+		$str_base = array(
+			'full_path'  => $this->getFullPath(),
+			'parent_dir' => $this->getParentDir(),
+			'dir_name'  => $this->getDirName(),
+			'public_url' => $this->getPublicUrl(),
+			'subdirs_json' => array(),
+			'subfiles_json' => array(),
+		);
+		// Add directories
+		if (count($this->getSubDirs()) > 0) {
+			foreach ($this->getSubDirs() as $subdir) {
+				$str_base['subdirs_json'][] = $subdir->toJson();
+			}
+		}
+		// Addfiles
+		if (count($this->getSubFiles()) > 0) {
+			foreach ($this->getSubFiles() as $subfile) {
+				$str_base['subfiles_json'][] = $subfile->toJson();
+			}
+		}
+
+		return json_encode($str_base);
+	}
+
+	public static function fromJson($json) {
+		$str = json_decode($json);
+		if (! $str) {
+			return null;
+		}
+
+		$dir_obj = new DropboxDir();
+		if (@$str['full_path']) {
+			$dir_obj->setFullPath($str['full_path']);
+		}
+		if (@$str['parent_dir']) {
+			$dir_obj->setParentDir($str['parent_dir']);
+		}
+		if (@$str['dir_name']) {
+			$dir_obj->setDirName($str['dir_name']);
+		}
+		if (@$str['public_url']) {
+			$dir_obj->setPublicUrl($str['public_url']);
+		}
+
+		if (@$str['subfiles_json']) {
+			foreach ($str['subfiles_json'] as $subfile_json) {
+				$subfile = DropboxFile::fromJson($subfile_json);
+				if ($subfile != null) {
+					$dir_obj->addSubFile($subfile);
+				}
+			}
+		}
+
+		if (@$str['subdirs_json']) {
+			foreach ($str['subdirs_json'] as $subdir_json) {
+				$subdir = DropboxDir::fromJson($subdir_json);
+				if ($subdir != null) {
+					$dir_obj->addSubDir($subdir);
+				}
+			}
+		}
+
+		return $dir_obj;
+	}
+
 }
 
