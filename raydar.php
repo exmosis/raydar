@@ -1,4 +1,12 @@
 <?php
+ini_set('display_errors', 'On');
+ini_set('error_reporting', 'E_ALL');
+
+// TODO: Work out user's home directory automatically
+define('CONFIG_DIR', '/Users/graham/.raydar');
+define('CONFIG_FILE_DIRS', CONFIG_DIR . '/dirs');
+define('CONFIG_FILE_KNOWN_FILES', CONFIG_DIR . '/.known_files.db');
+define('CONFIG_FILE_SMTP', 'smtp');
 
 require_once('config.php');
 require_once('cls_DropboxFile.php');
@@ -8,10 +16,6 @@ require_once('includes/PHPMailer/PHPMailerAutoload.php');
 define('DROPBOX_UPLOADER', './bash/Dropbox-Uploader/dropbox_uploader.sh');
 define('DROPBOX_UPLOADER_CMD_LIST', 'list');
 define('DROPBOX_UPLOADER_CMD_GET_URL', 'share');
-
-define('CONFIG_FILE_DIRS', '/home/pi/.raydar/dirs');
-define('CONFIG_FILE_KNOWN_FILES', '/home/pi/.raydar/.known_files.db');
-define('CONFIG_FILE_SMTP', 'smtp');
 
 // Constants for file types
 define('DIR_ENTRY_TYPE_FILE', 'F');
@@ -28,11 +32,12 @@ function run() {
 	loadConfig(CONFIG_FILE_SMTP, true);
 
 	$raydar_dirs = getDirConfig();
+
 	if (! $raydar_dirs) {
 		echo '  No directories configured. Exiting.' . "\n";
 		exit;
 	}
-	
+
 	$old_known_files = getKnownFiles();
 
 	list($known_files, $updates) = getDropboxUpdates($raydar_dirs, $old_known_files);
