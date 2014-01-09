@@ -19,4 +19,5 @@ TODOs:
 * Add ignore folder patterns, for folders such as .AppleDouble
 * Add ignore file patterns, for system files, etc.
 * Link recursive option to dirs config
+* Get subject templating to work
 
