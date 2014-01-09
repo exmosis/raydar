@@ -4,6 +4,11 @@ if (! defined('CONFIG_DIR')) {
 	define('CONFIG_DIR', '/home/pi/.raydar');
 }
 
+// TODO: Work out user's home directory automatically
+define('CONFIG_FILE_DIRS', CONFIG_DIR . '/dirs');
+define('CONFIG_FILE_KNOWN_FILES', CONFIG_DIR . '/.known_files.db');
+define('CONFIG_FILE_SMTP', 'smtp');
+
 function loadConfig($file, $mandatory = false) {
 	$file = CONFIG_DIR . '/' . $file;
 

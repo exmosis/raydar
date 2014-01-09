@@ -4,11 +4,9 @@ ini_set('error_reporting', 'E_ALL');
 
 define('MAX_LOG_LEVEL', 0); // 0 = message, 1 = debug
 
-// TODO: Work out user's home directory automatically
-define('CONFIG_DIR', '/home/pi/.raydar');
-define('CONFIG_FILE_DIRS', CONFIG_DIR . '/dirs');
-define('CONFIG_FILE_KNOWN_FILES', CONFIG_DIR . '/.known_files.db');
-define('CONFIG_FILE_SMTP', 'smtp');
+if (file_exists('raydar-config.php')) {
+	include('raydar-config.php');
+}
 
 require_once('config.php');
 require_once('cls_DropboxFile.php');
