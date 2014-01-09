@@ -1,5 +1,9 @@
 <?php
 
+if (! defined('MAX_LOG_LEVEL')) {
+	define('MAX_LOG_LEVEL', 1); // 0 = message, 1 = debug
+}
+
 if (! defined('CONFIG_DIR')) {
 	define('CONFIG_DIR', '/home/pi/.raydar');
 }

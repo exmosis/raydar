@@ -3,3 +3,6 @@
 // Location that all config files are kept in, usually '.raydar' in home directory
 define('CONFIG_DIR', '/home/username/.raydar');
 
+// Logging level. 0 = info. 1 = debug.
+define('MAX_LOG_LEVEL', 1);
+
