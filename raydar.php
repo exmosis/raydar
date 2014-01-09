@@ -2,8 +2,6 @@
 ini_set('display_errors', 'On');
 ini_set('error_reporting', 'E_ALL');
 
-define('MAX_LOG_LEVEL', 0); // 0 = message, 1 = debug
-
 if (file_exists('raydar-config.php')) {
 	include('raydar-config.php');
 }
@@ -134,6 +132,16 @@ function calculateUpdatedFiles($old_files, $new_files) {
 
 	noticeObject('old_files', $old_files, 1);
 	noticeObject('new_files', $new_files, 1);
+
+	// Return all new files if no old files passed in
+	if (! $old_files) {
+		return $new_files;
+	}
+
+	// Return nothing if no new files passed in
+	if (! $new_files) {
+		return null;
+	}
 
 	$updates = new DropboxDir();
 	$updates->setFullPath($new_files->getFullPath());
