@@ -13,6 +13,11 @@ define('CONFIG_FILE_DIRS', CONFIG_DIR . '/dirs');
 define('CONFIG_FILE_KNOWN_FILES', CONFIG_DIR . '/.known_files.db');
 define('CONFIG_FILE_SMTP', 'smtp');
 
+// CONSTANT NAMES OF CONFIG FILE SECTIONS
+define('CONFIG_SECTION_DIRS_SCAN', 'scan_dirs');
+define('CONFIG_SECTION_DIRS_IGNORE', 'ignore_dirs_match');
+define('CONFIG_SECTION_FILES_IGNORE', 'ignore_files_match');
+
 function loadConfig($file, $mandatory = false) {
 	$file = CONFIG_DIR . '/' . $file;
 
