@@ -1,6 +1,4 @@
 <?php
-ini_set('display_errors', 'On');
-ini_set('error_reporting', 'E_ALL');
 
 if (file_exists('raydar-config.php')) {
 	include('raydar-config.php');
@@ -29,9 +27,13 @@ function run() {
 	// Get config entries for SMTP
 	loadConfig(CONFIG_FILE_SMTP, true);
 
-	$raydar_dirs = getDirConfig();
+	list($raydar_dirs, $ignore_dirs, $ignore_files) = getDirConfig();
 
 	noticeObject('raydar_dirs', $raydar_dirs, 1);
+	noticeObject('ignore_dirs', $ignore_dirs, 1);
+	noticeObject('ignore_files', $ignore_files, 1);
+
+exit;
 	
 	if (! $raydar_dirs) {
 		noticeString('  No directories configured. Exiting.', 0);
@@ -304,6 +306,9 @@ function buildDropboxContents($dir, $dir_cache = null) {
 
 }
 
+define('CONFIG_PARSE_MODE_SCAN_DIRS', 1);
+define('CONFIG_PARSE_MODE_IGNORE_DIRS', 2);
+define('CONFIG_PARSE_MODE_IGNORE_FILES', 3);
 
 function getDirConfig() {
 
@@ -313,35 +318,81 @@ function getDirConfig() {
 	}
 
 	$raydar_dirs_txt = file_get_contents(CONFIG_FILE_DIRS);
+
 	$raydar_dirs = array();
+	$ignore_dir_patterns = array();
+	$ignore_file_patterns = array();
+
+	$config_mode = CONFIG_PARSE_MODE_SCAN_DIRS;
 	foreach (explode("\n", $raydar_dirs_txt) as $dir_config) {
 
 		// skip comment lines
 		if (preg_match('/^\s*#/', $dir_config)) {
 			continue;
 		}
-	
-		$dir_option_recurse = true;
-		$dir = null;
 
-		// check for recursive options - line starting with '= ' or '> '
-		if (preg_match('/^=\s/', $dir_config)) {
-			$dir_option_recurse = false;
-			$dir = preg_replace('/^=\s+/', '', $dir_config);
-		} else if (preg_match('/^>\s/', $dir_config)) {
-			// use default option of recursing
-			$dir = preg_replace('/^>\s+/', '', $dir_config);
-		} else {
-			// use whole line as directory
-			$dir = trim($dir_config);
+		// skip blank lines
+		if (preg_match('/^\s*$/', $dir_config)) {
+			continue;
 		}
+
+		// check if mode is set
+		if (preg_match('/^\[([^\]]+)\]$/', trim($dir_config), $matches)) {
+			$attempted_config_mode = $matches[1];
+			switch ($attempted_config_mode) {
+				case CONFIG_SECTION_DIRS_SCAN:
+					$config_mode = CONFIG_PARSE_MODE_SCAN_DIRS;
+					break;
+				case CONFIG_SECTION_DIRS_IGNORE:
+					$config_mode = CONFIG_PARSE_MODE_IGNORE_DIRS;
+					break;
+				case CONFIG_SECTION_FILES_IGNORE:
+					$config_mode = CONFIG_PARSE_MODE_IGNORE_FILES;
+					break;
+				default:
+					noticeString('Didn\'t recognise config section ' . $attempted_config_mode . ', exiting.', 0);
+					exit;
+			}
+			continue;
+		}
+
+
+		if ($config_mode == CONFIG_PARSE_MODE_SCAN_DIRS) {	
+			$dir_option_recurse = true;
+			$dir = null;
+	
+			// check for recursive options - line starting with '= ' or '> '
+			if (preg_match('/^=\s/', $dir_config)) {
+				$dir_option_recurse = false;
+				$dir = preg_replace('/^=\s+/', '', $dir_config);
+			} else if (preg_match('/^>\s/', $dir_config)) {
+				// use default option of recursing
+				$dir = preg_replace('/^>\s+/', '', $dir_config);
+			} else {
+				// use whole line as directory
+				$dir = trim($dir_config);
+			}	
 		
-		if ($dir && ! array_key_exists($dir, $raydar_dirs)) {
-			$raydar_dirs[$dir] = $dir_option_recurse;
+			if ($dir && ! array_key_exists($dir, $raydar_dirs)) {
+				$raydar_dirs[$dir] = $dir_option_recurse;
+			}
+
+		} else 
+		if ($config_mode == CONFIG_PARSE_MODE_IGNORE_DIRS) {
+			$dir = trim($dir_config);
+			if (! in_array($dir, $ignore_dir_patterns)) {
+				$ignore_dir_patterns[] = $dir;
+			}
+		} else
+		if ($config_mode == CONFIG_PARSE_MODE_IGNORE_FILES) {
+			$dir = trim($dir_config);
+			if (! in_array($dir, $ignore_file_patterns)) {
+				$ignore_file_patterns[] = $dir;
+			}
 		}
 	
 	}
-	return $raydar_dirs;
+	return array($raydar_dirs, $ignore_dir_patterns, $ignore_dir_files);
 }	
 
 function saveKnownFiles($known_files) {
