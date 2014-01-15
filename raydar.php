@@ -4,6 +4,10 @@ if (file_exists('raydar-config.php')) {
 	include('raydar-config.php');
 }
 
+define('CONFIG_PARSE_MODE_SCAN_DIRS', 1);
+define('CONFIG_PARSE_MODE_IGNORE_DIRS', 2);
+define('CONFIG_PARSE_MODE_IGNORE_FILES', 3);
+
 require_once('config.php');
 require_once('cls_DropboxFile.php');
 require_once('cls_DropboxDir.php');
@@ -33,8 +37,6 @@ function run() {
 	noticeObject('ignore_dirs', $ignore_dirs, 1);
 	noticeObject('ignore_files', $ignore_files, 1);
 
-exit;
-	
 	if (! $raydar_dirs) {
 		noticeString('  No directories configured. Exiting.', 0);
 		exit;
@@ -43,7 +45,7 @@ exit;
 	$old_known_files = getKnownFiles();
 	noticeObject('old_known_files', $old_known_files, 1);
 
-	list($known_files, $updates) = getDropboxUpdates($raydar_dirs, $old_known_files);
+	list($known_files, $updates) = getDropboxUpdates($raydar_dirs, $old_known_files, $ignore_dirs, $ignore_files);
 
 	noticeObject('known_files', $known_files, 2);
 	noticeObject('updates', $updates, 1);
@@ -98,15 +100,35 @@ function sendUpdatesEmail($updates) {
 }
 
 /**
+ * Helper function to check a string against a bunch of checks. Does a basic match, no regex.
+ */
+function stringMatchesList($name, $poss_matches) {
+
+	foreach ($poss_matches as $m) {
+		if (strpos($name, $m) !== false) {
+			return true;
+		}
+	}
+
+	return false;
+
+}
+
+/**
  * Top-level (non-recursive) function to cycle through directories we want to 
  * check.
  */
-function getDropboxUpdates($dirs, $old_known_files = array()) {
+function getDropboxUpdates($dirs, $old_known_files = array(), $ignore_dirs = array(), $ignore_files = array()) {
 
 	$dir_entries = array();
 	$updates = array();
 	
 	foreach ($dirs as $dir => $recurse) {
+
+		if (stringMatchesList($dir, $ignore_dirs)) {
+			continue; // skip directory
+		}
+
 		$old_cache = array();
 		foreach ($old_known_files as $cache_dir_info) {
 			if ($cache_dir_info->getFullPath() == $dir) {
@@ -114,7 +136,7 @@ function getDropboxUpdates($dirs, $old_known_files = array()) {
 				break;
 			}
 		}
-		$dir_entries[] = buildDropboxContents($dir, $old_cache);
+		$dir_entries[] = buildDropboxContents($dir, $old_cache, $ignore_dirs, $ignore_files);
 
 		$updates[] = calculateUpdatedFiles($old_cache, $dir_entries[count($dir_entries) - 1]);
 	}
@@ -202,7 +224,7 @@ function calculateUpdatedFiles($old_files, $new_files) {
 /**
  * Recursive function to get contents of directory from Dropbox and turn into object tree.
  */
-function buildDropboxContents($dir, $dir_cache = null) {
+function buildDropboxContents($dir, $dir_cache = null, $ignore_dirs = array(), $ignore_files = array()) {
 
 	noticeString("Processing $dir", 0);
 
@@ -237,6 +259,11 @@ function buildDropboxContents($dir, $dir_cache = null) {
 
 			if ($dir_entry_type && $dir_entry_name) {
 				if ($dir_entry_type == DIR_ENTRY_TYPE_FILE) {
+
+					if (stringMatchesList($dir_entry_name, $ignore_files)) {
+						noticeString('Ignoring file: ' . $dir_entry_name, 1);
+						continue;
+					}
 					
 					$dropbox_file = new DropboxFile();
 					$dropbox_file->setFileName($dir_entry_name);
@@ -284,6 +311,12 @@ function buildDropboxContents($dir, $dir_cache = null) {
 					}
 
 				} else if ($dir_entry_type == DIR_ENTRY_TYPE_DIR) {
+
+					if (stringMatchesList($dir_entry_name, $ignore_dirs)) {
+						noticeString('Ignoring dir: ' . $dir_entry_name, 1);
+						continue;
+					}
+
 					// TODO: Move this to a findSubDirByName() method in DropboxDir
 					$cache_subdir = null;
 					if ($dir_cache != null) {
@@ -306,9 +339,6 @@ function buildDropboxContents($dir, $dir_cache = null) {
 
 }
 
-define('CONFIG_PARSE_MODE_SCAN_DIRS', 1);
-define('CONFIG_PARSE_MODE_IGNORE_DIRS', 2);
-define('CONFIG_PARSE_MODE_IGNORE_FILES', 3);
 
 function getDirConfig() {
 
@@ -392,7 +422,7 @@ function getDirConfig() {
 		}
 	
 	}
-	return array($raydar_dirs, $ignore_dir_patterns, $ignore_dir_files);
+	return array($raydar_dirs, $ignore_dir_patterns, $ignore_file_patterns);
 }	
 
 function saveKnownFiles($known_files) {
