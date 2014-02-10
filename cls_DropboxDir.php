@@ -72,9 +72,14 @@ class DropboxDir {
 		return $this->subdirs;
 	}
 
-	public function toHTML() {
+	public function toHTML($output_if_empty = false) {
 
 		$html = '';
+
+		if ($this->isEmpty() && ! $output_if_empty) {
+			return $html;
+		}
+
 		$html .= '<li>';
 		$html .= '<strong>' . $this->getDirName() . '</strong>';
 
