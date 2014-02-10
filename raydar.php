@@ -477,7 +477,7 @@ function fillSubjectTemplate($subject) {
 
 		$var = '\[\[' . $var . '\]\]';
 
-		if (preg_match('/' . $var . '\]\]/', $subject) &&
+		if (preg_match('/' . $var . '/', $subject) &&
 		    function_exists($func)) {
 
 			$val = call_user_func($func);
