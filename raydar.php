@@ -81,7 +81,10 @@ function sendUpdatesEmail($updates) {
 
 	$mail->From = SMTP_FROM;
 	$mail->FromName = SMTP_FROMNAME;
-	$mail->addAddress(SMTP_TO);
+	$smtp_tos = explode(",", SMTP_TO);
+	foreach ($smtp_tos as $to) {
+		$mail->addAddress($to);
+	}
 	$mail->isHTML(true);
 
 	$mail->Subject = fillSubjectTemplate(SMTP_SUBJECT);
@@ -294,6 +297,7 @@ function buildDropboxContents($dir, $dir_cache = null, $ignore_dirs = array(), $
 							    DROPBOX_UPLOADER_CMD_GET_URL . 
 							    ' "' . $dir . '/' . $dir_entry_name . '"';
 						$link_cmd_result = `$link_cmd`;
+						$link = null;
 						if (preg_match('/\s(
 								https?:\/\/.*	# $1 = URL
 								)$/x', $link_cmd_result, $matches)) {
@@ -302,6 +306,10 @@ function buildDropboxContents($dir, $dir_cache = null, $ignore_dirs = array(), $
 
 						if ($link) {
 							$dropbox_file->setPublicUrl($link);
+						} else {
+							echo "Couldn't get link :(\n";
+							echo "Command was: " . $link_cmd . "\n";
+							echo "Result was:\n" . $link_cmd_result . "\n";
 						}
 					}
 
