@@ -253,11 +253,13 @@ function buildDropboxContents($dir, $dir_cache = null, $ignore_dirs = array(), $
 				  ([^\]]+)	# $1 = entry type
 				\]
 				\s+
+				  \d+\s+	# skip file ID
 				  (.*)		# $2 = entry name
 				$
 				/x', $dir_entry, $matches)) {
 
 			$dir_entry_type = $matches[1];
+			
 			$dir_entry_name = trim($matches[2]);
 
 			if ($dir_entry_type && $dir_entry_name) {
