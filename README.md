@@ -1,7 +1,7 @@
 raydar
 ======
 
-Dropbox monitoring tool. Eventually this will run regularly on a Raspberry Pi and send out emails listing latest uploads.
+Dropbox monitoring tool. I have this running on a Raspberry Pi via a cronjob, which checks a bunch of listed Dropbox folders (which my user has access to) and sends out an email showing any new files in those folders.
 
 SETUP:
 
@@ -12,6 +12,7 @@ SETUP:
 * add the following files to the directory above:
 ** dirs - list of directories in Dropbox to check
 ** smtp - more info to come on how to set up SMTP.
+* The script uses Dropbox-Uploader, so you'll need to set up an app in Dropbox, and set up the script as per instructions at  https://github.com/andreafabrizi/Dropbox-Uploader - this will basically mean running ./bash/Dropbox-Uploader/dropbox_uploader.sh from the base directory of the repo. Once you have an access key, the script should work.
 
 Example:
 
