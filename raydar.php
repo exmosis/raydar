@@ -60,8 +60,9 @@ function run() {
 	if ($empty_updates) {
 		noticeString('  No updates detected.', 0);
 	} else {
-		sendUpdatesEmail($updates);
-		saveKnownFiles($known_files);
+		if (sendUpdatesEmail($updates)) {
+			saveKnownFiles($known_files);
+		}
 	}
 
 }
@@ -86,6 +87,7 @@ function sendUpdatesEmail($updates) {
 		$mail->addAddress($to);
 	}
 	$mail->isHTML(true);
+	// $mail->SMTPDebug = true;
 
 	$mail->Subject = fillSubjectTemplate(SMTP_SUBJECT);
 
@@ -99,7 +101,11 @@ function sendUpdatesEmail($updates) {
 	$mail->Body = $body;
 	$mail->AltBody = $body;
 
-	$mail->send();
+	$send_ok = $mail->send();
+	if (! $send_ok) {
+		noticeString("Couldn't send email: " . $mail->ErrorInfo);
+	}
+	return $send_ok;
 }
 
 /**
@@ -253,14 +259,14 @@ function buildDropboxContents($dir, $dir_cache = null, $ignore_dirs = array(), $
 				  ([^\]]+)	# $1 = entry type
 				\]
 				\s+
-				  \d+\s+	# skip file ID
-				  (.*)		# $2 = entry name
+				  (\d+\s+)?	# $2 = skip file ID
+				  (.*)		# $3 = entry name
 				$
 				/x', $dir_entry, $matches)) {
 
 			$dir_entry_type = $matches[1];
 			
-			$dir_entry_name = trim($matches[2]);
+			$dir_entry_name = trim($matches[3]);
 
 			if ($dir_entry_type && $dir_entry_name) {
 				if ($dir_entry_type == DIR_ENTRY_TYPE_FILE) {
